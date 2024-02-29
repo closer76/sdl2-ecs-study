@@ -33,15 +33,21 @@ pub fn main() -> Result<(), String> {
     canvas.present();
     let mut event_pump = sdl_context.event_pump()?;
 
+    let mut rng = thread_rng();
     let delta_up = 0.1;
     let delta_down = -0.03;
 
     let mut levels = (0..GRID_COUNT_Y)
-        .map(|_| (0..GRID_COUNT_X).map(|_| 0.0).collect::<Vec<f64>>())
+        .map(|_| (0..GRID_COUNT_X).map(|_| rng.gen()).collect::<Vec<f64>>())
         .collect::<Vec<_>>();
 
-    let mut cur_x = -1;
-    let mut cur_y = -1;
+    let mut deltas = (0..GRID_COUNT_Y)
+        .map(|_y| {
+            (0..GRID_COUNT_X)
+                .map(|_x| if rng.gen() { delta_up } else { delta_down })
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
 
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -51,10 +57,6 @@ pub fn main() -> Result<(), String> {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => break 'running,
-                Event::MouseMotion { x, y, .. } => {
-                    cur_x = x;
-                    cur_y = y;
-                }
                 _ => {}
             }
         }
@@ -62,26 +64,20 @@ pub fn main() -> Result<(), String> {
         canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.clear();
 
-        let in_y = if cur_y >= 0 { cur_y / 40 } else { -1 };
-        let in_x = if cur_x >= 0 { cur_x / 40 } else { -1 };
         // update levels
         for y in 0..GRID_COUNT_Y {
             for x in 0..GRID_COUNT_X {
-                if (y as i32) == in_y && (x as i32) == in_x {
-                    levels[y][x] += delta_up;
-                    if levels[y][x] > 1.0 {
-                        levels[y][x] = 1.0;
-                    }
-                } else {
-                    levels[y][x] += delta_down;
-                    if levels[y][x] < 0.0 {
-                        levels[y][x] = 0.0;
-                    }
+                levels[y][x] += deltas[y][x];
+                if levels[y][x] > 1.0 {
+                    levels[y][x] = 1.0;
+                    deltas[y][x] = delta_down;
+                } else if levels[y][x] < 0.0 {
+                    levels[y][x] = 0.0;
+                    deltas[y][x] = delta_up;
                 }
-
                 let red = (255.0 * levels[y][x]) as u8;
                 canvas.set_draw_color(Color::RGB(red, 0, 0));
-                canvas.fill_rect(Rect::new(
+                canvas.draw_rect(Rect::new(
                     (x as u32 * GRID_W + 1) as i32,
                     (y as u32 * GRID_H + 1) as i32,
                     (GRID_W - 2) as u32,

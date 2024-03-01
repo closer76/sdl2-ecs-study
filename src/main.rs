@@ -13,10 +13,22 @@ const GRID_H: u32 = 40;
 const GRID_COUNT_X: usize = (SCREEN_W / GRID_W) as usize;
 const GRID_COUNT_Y: usize = (SCREEN_H / GRID_H) as usize;
 
+const PLAYER_MOVEMENT_SPEED: i32 = 5;
+
+#[derive(Debug, PartialEq, Eq)]
+enum Direction {
+    Left,
+    Right,
+    Up,
+    Down,
+}
+
 #[derive(Debug)]
 struct Player {
     position: Point,
     sprite: Rect,
+    speed: i32,
+    direction: Direction,
 }
 
 pub fn main() -> Result<(), String> {
@@ -46,14 +58,18 @@ pub fn main() -> Result<(), String> {
     let mut cur_x = -1;
     let mut cur_y = -1;
 
-    let players = vec![
+    let mut players = vec![
         Player {
             position: Point::new(0, 0),
             sprite: Rect::new(0, 0, 26, 36),
+            speed: 0,
+            direction: Direction::Right,
         },
         Player {
             position: Point::new(-100, -100),
             sprite: Rect::new(26, 0, 26, 36),
+            speed: 0,
+            direction: Direction::Right,
         },
     ];
 
@@ -67,6 +83,60 @@ pub fn main() -> Result<(), String> {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => break 'running,
+                Event::KeyDown {
+                    keycode: Some(Keycode::Left),
+                    ..
+                } => {
+                    players[0].direction = Direction::Left;
+                    players[0].speed = PLAYER_MOVEMENT_SPEED;
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::Right),
+                    ..
+                } => {
+                    players[0].direction = Direction::Right;
+                    players[0].speed = PLAYER_MOVEMENT_SPEED;
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::Up),
+                    ..
+                } => {
+                    players[0].direction = Direction::Up;
+                    players[0].speed = PLAYER_MOVEMENT_SPEED;
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::Down),
+                    ..
+                } => {
+                    players[0].direction = Direction::Down;
+                    players[0].speed = PLAYER_MOVEMENT_SPEED;
+                }
+
+                Event::KeyUp {
+                    keycode: Some(Keycode::Left),
+                    ..
+                } if players[0].direction == Direction::Left => {
+                    players[0].speed = 0;
+                }
+                Event::KeyUp {
+                    keycode: Some(Keycode::Right),
+                    ..
+                } if players[0].direction == Direction::Right => {
+                    players[0].speed = 0;
+                }
+                Event::KeyUp {
+                    keycode: Some(Keycode::Up),
+                    ..
+                } if players[0].direction == Direction::Up => {
+                    players[0].speed = 0;
+                }
+                Event::KeyUp {
+                    keycode: Some(Keycode::Down),
+                    ..
+                } if players[0].direction == Direction::Down => {
+                    players[0].speed = 0;
+                }
+
                 Event::MouseMotion { x, y, .. } => {
                     cur_x = x;
                     cur_y = y;
@@ -90,6 +160,24 @@ pub fn main() -> Result<(), String> {
                     if levels[y][x] < 0.0 {
                         levels[y][x] = 0.0;
                     }
+                }
+            }
+        }
+
+        // Update players
+        for player in &mut players {
+            match player.direction {
+                Direction::Left => {
+                    player.position = player.position.offset(-player.speed, 0);
+                }
+                Direction::Right => {
+                    player.position = player.position.offset(player.speed, 0);
+                }
+                Direction::Up => {
+                    player.position = player.position.offset(0, -player.speed);
+                }
+                Direction::Down => {
+                    player.position = player.position.offset(0, player.speed);
                 }
             }
         }

@@ -15,12 +15,23 @@ const GRID_COUNT_Y: usize = (SCREEN_H / GRID_H) as usize;
 
 const PLAYER_MOVEMENT_SPEED: i32 = 5;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum Direction {
     Left,
     Right,
     Up,
     Down,
+}
+
+impl Direction {
+    pub fn opposite(&self) -> Self {
+        match *self {
+            Self::Left => Self::Right,
+            Self::Right => Self::Left,
+            Self::Up => Self::Down,
+            Self::Down => Self::Up,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -29,6 +40,42 @@ struct Player {
     sprite: Rect,
     speed: i32,
     direction: Direction,
+    dir_queue: Vec<Direction>,
+    dir_state: [bool; 4],
+}
+
+impl Player {
+    pub fn add_direction(&mut self, dir: Direction) {
+        self.dir_state[dir as usize] = true;
+        self.dir_queue.push(dir);
+        self.direction = dir;
+        if self.dir_state[dir.opposite() as usize] {
+            self.speed = 0;
+        } else {
+            self.speed = PLAYER_MOVEMENT_SPEED;
+        }
+    }
+
+    pub fn remove_direction(&mut self, dir: Direction) {
+        self.dir_state[dir as usize] = false;
+        while let Some(last_dir) = self.dir_queue.pop() {
+            if self.dir_state[last_dir as usize] {
+                self.dir_queue.push(last_dir);
+                break;
+            }
+        }
+
+        if let Some(last_dir) = self.dir_queue.last() {
+            self.direction = *last_dir;
+            if self.dir_state[last_dir.opposite() as usize] {
+                self.speed = 0;
+            } else {
+                self.speed = PLAYER_MOVEMENT_SPEED;
+            }
+        } else {
+            self.speed = 0;
+        }
+    }
 }
 
 pub fn main() -> Result<(), String> {
@@ -64,12 +111,16 @@ pub fn main() -> Result<(), String> {
             sprite: Rect::new(0, 0, 26, 36),
             speed: 0,
             direction: Direction::Right,
+            dir_queue: vec![],
+            dir_state: [false; 4],
         },
         Player {
             position: Point::new(-100, -100),
             sprite: Rect::new(26, 0, 26, 36),
             speed: 0,
             direction: Direction::Right,
+            dir_queue: vec![],
+            dir_state: [false; 4],
         },
     ];
 
@@ -86,56 +137,35 @@ pub fn main() -> Result<(), String> {
                 Event::KeyDown {
                     keycode: Some(Keycode::Left),
                     ..
-                } => {
-                    players[0].direction = Direction::Left;
-                    players[0].speed = PLAYER_MOVEMENT_SPEED;
-                }
+                } => players[0].add_direction(Direction::Left),
                 Event::KeyDown {
                     keycode: Some(Keycode::Right),
                     ..
-                } => {
-                    players[0].direction = Direction::Right;
-                    players[0].speed = PLAYER_MOVEMENT_SPEED;
-                }
+                } => players[0].add_direction(Direction::Right),
                 Event::KeyDown {
                     keycode: Some(Keycode::Up),
                     ..
-                } => {
-                    players[0].direction = Direction::Up;
-                    players[0].speed = PLAYER_MOVEMENT_SPEED;
-                }
+                } => players[0].add_direction(Direction::Up),
                 Event::KeyDown {
                     keycode: Some(Keycode::Down),
                     ..
-                } => {
-                    players[0].direction = Direction::Down;
-                    players[0].speed = PLAYER_MOVEMENT_SPEED;
-                }
-
+                } => players[0].add_direction(Direction::Down),
                 Event::KeyUp {
                     keycode: Some(Keycode::Left),
                     ..
-                } if players[0].direction == Direction::Left => {
-                    players[0].speed = 0;
-                }
+                } => players[0].remove_direction(Direction::Left),
                 Event::KeyUp {
                     keycode: Some(Keycode::Right),
                     ..
-                } if players[0].direction == Direction::Right => {
-                    players[0].speed = 0;
-                }
+                } => players[0].remove_direction(Direction::Right),
                 Event::KeyUp {
                     keycode: Some(Keycode::Up),
                     ..
-                } if players[0].direction == Direction::Up => {
-                    players[0].speed = 0;
-                }
+                } => players[0].remove_direction(Direction::Up),
                 Event::KeyUp {
                     keycode: Some(Keycode::Down),
                     ..
-                } if players[0].direction == Direction::Down => {
-                    players[0].speed = 0;
-                }
+                } => players[0].remove_direction(Direction::Down),
 
                 Event::MouseMotion { x, y, .. } => {
                     cur_x = x;

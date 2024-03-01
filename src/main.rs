@@ -38,6 +38,7 @@ impl Direction {
 struct Player {
     position: Point,
     sprite: Rect,
+    sprite_index: i32,
     speed: i32,
     direction: Direction,
     dir_queue: Vec<Direction>,
@@ -109,6 +110,7 @@ pub fn main() -> Result<(), String> {
         Player {
             position: Point::new(0, 0),
             sprite: Rect::new(0, 0, 26, 36),
+            sprite_index: 0,
             speed: 0,
             direction: Direction::Right,
             dir_queue: vec![],
@@ -117,6 +119,7 @@ pub fn main() -> Result<(), String> {
         Player {
             position: Point::new(-100, -100),
             sprite: Rect::new(26, 0, 26, 36),
+            sprite_index: 0,
             speed: 0,
             direction: Direction::Right,
             dir_queue: vec![],
@@ -210,6 +213,15 @@ pub fn main() -> Result<(), String> {
                     player.position = player.position.offset(0, player.speed);
                 }
             }
+
+            if player.speed != 0 {
+                player.sprite_index = (player.sprite_index + 1) % 3;
+            } else {
+                player.sprite_index = 0;
+            }
+
+            player.sprite.x = player.sprite_index * 26;
+            player.sprite.y = direction_spritesheet_row(player.direction) * 36;
         }
 
         // Render
@@ -228,6 +240,15 @@ fn screen_from_world(canvas: &WindowCanvas, world_coord: &Point) -> Result<Point
         width as i32 / 2 + world_coord.x,
         height as i32 / 2 + world_coord.y,
     ))
+}
+
+fn direction_spritesheet_row(direction: Direction) -> i32 {
+    match direction {
+        Direction::Left => 1,
+        Direction::Right => 2,
+        Direction::Up => 3,
+        Direction::Down => 0,
+    }
 }
 
 fn render(

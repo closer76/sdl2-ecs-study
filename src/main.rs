@@ -6,6 +6,9 @@ use sdl2::rect::{Point, Rect};
 use sdl2::render::{Texture, WindowCanvas};
 use std::time::Duration;
 
+use specs::prelude::*;
+use specs_derive::Component;
+
 const SCREEN_W: u32 = 800;
 const SCREEN_H: u32 = 600;
 const GRID_W: u32 = 40;
@@ -34,27 +37,46 @@ impl Direction {
     }
 }
 
-#[derive(Debug)]
-struct Player {
-    position: Point,
-    sprite: Rect,
-    sprite_index: i32,
+#[derive(Debug, Component)]
+#[storage(VecStorage)]
+struct Position(Point);
+
+#[derive(Debug, Component)]
+#[storage(VecStorage)]
+struct Velocity {
     speed: i32,
     direction: Direction,
+}
+
+#[derive(Debug, Component)]
+#[storage(VecStorage)]
+struct Sprite {
+    /// Index of the spritesheet
+    spritesheet: usize,
+    /// Region in spritesheet that should be rendered
+    region: Rect,
+}
+
+#[derive(Debug, Component)]
+#[storage(VecStorage)]
+struct MovementAnimation {
+    current_frame: usize,
+    up_frames: Vec<Sprite>,
+    down_frames: Vec<Sprite>,
+    left_frames: Vec<Sprite>,
+    right_frames: Vec<Sprite>,
+}
+
+#[derive(Debug)]
+struct InputBuffer {
     dir_queue: Vec<Direction>,
     dir_state: [bool; 4],
 }
 
-impl Player {
+impl InputBuffer {
     pub fn add_direction(&mut self, dir: Direction) {
         self.dir_state[dir as usize] = true;
         self.dir_queue.push(dir);
-        self.direction = dir;
-        if self.dir_state[dir.opposite() as usize] {
-            self.speed = 0;
-        } else {
-            self.speed = PLAYER_MOVEMENT_SPEED;
-        }
     }
 
     pub fn remove_direction(&mut self, dir: Direction) {
@@ -65,18 +87,29 @@ impl Player {
                 break;
             }
         }
+    }
 
+    pub fn apply_to_player(&self, player: &mut Player) {
         if let Some(last_dir) = self.dir_queue.last() {
-            self.direction = *last_dir;
+            player.direction = *last_dir;
             if self.dir_state[last_dir.opposite() as usize] {
-                self.speed = 0;
+                player.speed = 0;
             } else {
-                self.speed = PLAYER_MOVEMENT_SPEED;
+                player.speed = PLAYER_MOVEMENT_SPEED;
             }
         } else {
-            self.speed = 0;
+            player.speed = 0;
         }
     }
+}
+
+#[derive(Debug)]
+struct Player {
+    position: Point,
+    sprite: Rect,
+    sprite_index: i32,
+    speed: i32,
+    direction: Direction,
 }
 
 pub fn main() -> Result<(), String> {
@@ -106,6 +139,15 @@ pub fn main() -> Result<(), String> {
     let mut cur_x = -1;
     let mut cur_y = -1;
 
+    let player_top_left_frame = Rect::new(0, 0, 26, 36);
+    let movement_animation = MovementAnimation {
+        current_frame: 0,
+        up_frames: character_animation_frames(0, player_top_left_frame, Direction::Up),
+        down_frames: character_animation_frames(0, player_top_left_frame, Direction::Down),
+        left_frames: character_animation_frames(0, player_top_left_frame, Direction::Left),
+        right_frames: character_animation_frames(0, player_top_left_frame, Direction::Right),
+    };
+
     let mut players = vec![
         Player {
             position: Point::new(0, 0),
@@ -113,8 +155,6 @@ pub fn main() -> Result<(), String> {
             sprite_index: 0,
             speed: 0,
             direction: Direction::Right,
-            dir_queue: vec![],
-            dir_state: [false; 4],
         },
         Player {
             position: Point::new(-100, -100),
@@ -122,10 +162,13 @@ pub fn main() -> Result<(), String> {
             sprite_index: 0,
             speed: 0,
             direction: Direction::Right,
-            dir_queue: vec![],
-            dir_state: [false; 4],
         },
     ];
+
+    let mut input_buffer = InputBuffer {
+        dir_queue: vec![],
+        dir_state: [false; 4],
+    };
 
     let mut event_pump = sdl_context.event_pump()?;
     'running: loop {
@@ -140,35 +183,35 @@ pub fn main() -> Result<(), String> {
                 Event::KeyDown {
                     keycode: Some(Keycode::Left),
                     ..
-                } => players[0].add_direction(Direction::Left),
+                } => input_buffer.add_direction(Direction::Left),
                 Event::KeyDown {
                     keycode: Some(Keycode::Right),
                     ..
-                } => players[0].add_direction(Direction::Right),
+                } => input_buffer.add_direction(Direction::Right),
                 Event::KeyDown {
                     keycode: Some(Keycode::Up),
                     ..
-                } => players[0].add_direction(Direction::Up),
+                } => input_buffer.add_direction(Direction::Up),
                 Event::KeyDown {
                     keycode: Some(Keycode::Down),
                     ..
-                } => players[0].add_direction(Direction::Down),
+                } => input_buffer.add_direction(Direction::Down),
                 Event::KeyUp {
                     keycode: Some(Keycode::Left),
                     ..
-                } => players[0].remove_direction(Direction::Left),
+                } => input_buffer.remove_direction(Direction::Left),
                 Event::KeyUp {
                     keycode: Some(Keycode::Right),
                     ..
-                } => players[0].remove_direction(Direction::Right),
+                } => input_buffer.remove_direction(Direction::Right),
                 Event::KeyUp {
                     keycode: Some(Keycode::Up),
                     ..
-                } => players[0].remove_direction(Direction::Up),
+                } => input_buffer.remove_direction(Direction::Up),
                 Event::KeyUp {
                     keycode: Some(Keycode::Down),
                     ..
-                } => players[0].remove_direction(Direction::Down),
+                } => input_buffer.remove_direction(Direction::Down),
 
                 Event::MouseMotion { x, y, .. } => {
                     cur_x = x;
@@ -198,6 +241,7 @@ pub fn main() -> Result<(), String> {
         }
 
         // Update players
+        input_buffer.apply_to_player(&mut players[0]);
         for player in &mut players {
             match player.direction {
                 Direction::Left => {
@@ -249,6 +293,23 @@ fn direction_spritesheet_row(direction: Direction) -> i32 {
         Direction::Up => 3,
         Direction::Down => 0,
     }
+}
+
+fn character_animation_frames(spritesheet: usize, top_left_frame: Rect, direction: Direction) -> Vec<Sprite> {
+    let row = direction_spritesheet_row(direction);
+    let (frame_width, frame_height) = top_left_frame.size();
+    (0..3).map(|col| {
+        Sprite {
+            spritesheet,
+            region: Rect::new(
+                top_left_frame.x + col * frame_width as i32,
+                top_left_frame.y + row * frame_height as i32,
+                frame_width,
+                frame_height
+            )
+        }
+    })
+    .collect()
 }
 
 fn render(

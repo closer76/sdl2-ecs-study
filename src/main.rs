@@ -1,9 +1,9 @@
 use sdl2::event::Event;
-use sdl2::image::{self, LoadTexture, InitFlag};
+use sdl2::image::{self, InitFlag, LoadTexture};
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
-use sdl2::rect::{Rect, Point};
-use sdl2::render::{WindowCanvas, Texture};
+use sdl2::rect::{Point, Rect};
+use sdl2::render::{Texture, WindowCanvas};
 use std::time::Duration;
 
 const SCREEN_W: u32 = 800;
@@ -12,6 +12,12 @@ const GRID_W: u32 = 40;
 const GRID_H: u32 = 40;
 const GRID_COUNT_X: usize = (SCREEN_W / GRID_W) as usize;
 const GRID_COUNT_Y: usize = (SCREEN_H / GRID_H) as usize;
+
+#[derive(Debug)]
+struct Player {
+    position: Point,
+    sprite: Rect,
+}
 
 pub fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
@@ -40,8 +46,16 @@ pub fn main() -> Result<(), String> {
     let mut cur_x = -1;
     let mut cur_y = -1;
 
-    let position = Point::new(0, 0);
-    let sprite = Rect::new(0, 0, 26, 36);
+    let players = vec![
+        Player {
+            position: Point::new(0, 0),
+            sprite: Rect::new(0, 0, 26, 36),
+        },
+        Player {
+            position: Point::new(-100, -100),
+            sprite: Rect::new(26, 0, 26, 36),
+        },
+    ];
 
     let mut event_pump = sdl_context.event_pump()?;
     'running: loop {
@@ -81,7 +95,7 @@ pub fn main() -> Result<(), String> {
         }
 
         // Render
-        render(&mut canvas, &levels, &texture, position, sprite)?;
+        render(&mut canvas, &levels, &texture, &players)?;
 
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
         // The rest of the game loop goes here...
@@ -92,15 +106,17 @@ pub fn main() -> Result<(), String> {
 
 fn screen_from_world(canvas: &WindowCanvas, world_coord: &Point) -> Result<Point, String> {
     let (width, height) = canvas.output_size()?;
-    Ok(Point::new(width as i32 / 2 + world_coord.x, height as i32 / 2 + world_coord.y))
+    Ok(Point::new(
+        width as i32 / 2 + world_coord.x,
+        height as i32 / 2 + world_coord.y,
+    ))
 }
 
 fn render(
     canvas: &mut WindowCanvas,
     levels: &Vec<Vec<f64>>,
     texture: &Texture,
-    position: Point,
-    sprite: Rect
+    players: &Vec<Player>,
 ) -> Result<(), String> {
     canvas.set_draw_color(Color::RGB(0, 0, 0));
     canvas.clear();
@@ -118,9 +134,19 @@ fn render(
         }
     }
 
-    let screen_position = screen_from_world(canvas, &position)?;
-    let screen_rect = Rect::from_center(screen_position, sprite.width(), sprite.height());
-    canvas.copy(texture, sprite, screen_rect)?;
+    players
+        .iter()
+        .map(|player| {
+            let screen_position = screen_from_world(canvas, &player.position)?;
+            let screen_rect = Rect::from_center(
+                screen_position,
+                player.sprite.width(),
+                player.sprite.height(),
+            );
+            canvas.copy(texture, player.sprite, screen_rect)?;
+            Ok(())
+        })
+        .collect::<Result<(), String>>()?;
 
     canvas.present();
 

@@ -297,7 +297,6 @@ dependencies = [
  "rand",
  "sdl2",
  "specs",
- "specs-derive",
 ]
 
 [[package]]
@@ -340,6 +339,7 @@ dependencies = [
  "rayon",
  "shred",
  "shrev",
+ "specs-derive",
  "tuple_utils",
 ]
 

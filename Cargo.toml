@@ -5,8 +5,7 @@ edition = "2021"
 
 [dependencies]
 rand = "0.8.5"
-specs = "0.20.0"
-specs-derive = "0.4.1"
+specs = { version = "0.20.0", features = ["specs-derive"] }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

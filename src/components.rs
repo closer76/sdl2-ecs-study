@@ -1,6 +1,6 @@
 use sdl2::rect::{Point, Rect};
 use specs::prelude::*;
-use specs_derive::Component;
+use specs::Component;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Direction {

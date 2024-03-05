@@ -36,6 +36,25 @@ impl InputBuffer {
             }
         }
     }
+
+    pub fn get_velocity(&self) -> Velocity {
+        let mut vel = Velocity {
+            direction: Direction::Right,
+            speed: 0,
+        };
+        if let Some(last_dir) = self.dir_queue.last() {
+            vel.direction = *last_dir;
+            if self.dir_state[last_dir.opposite() as usize] {
+                vel.speed = 0;
+            } else {
+                vel.speed = PLAYER_MOVEMENT_SPEED;
+            }
+        } else {
+            vel.speed = 0;
+        }
+
+        vel
+    }
 }
 
 pub fn main() -> Result<(), String> {
@@ -107,17 +126,16 @@ pub fn main() -> Result<(), String> {
         .with(default_sprite.clone()) // sets default sprite
         .build();
 
-    let input_buffer = InputBuffer {
+    let mut input_buffer = InputBuffer {
         dir_queue: vec![],
         dir_state: [false; 4],
     };
-    world.insert(input_buffer);
+    world.insert(input_buffer.get_velocity());
 
     let mut event_pump = sdl_context.event_pump()?;
     'running: loop {
         // Handle input
         for event in event_pump.poll_iter() {
-            let mut buf = world.remove::<InputBuffer>().unwrap();
             match event {
                 Event::Quit { .. }
                 | Event::KeyDown {
@@ -128,57 +146,49 @@ pub fn main() -> Result<(), String> {
                     keycode: Some(Keycode::Left),
                     ..
                 } => {
-                    // let mut buf = world.write_resource::<&mut InputBuffer>();
-                    buf.add_direction(Direction::Left);
+                    input_buffer.add_direction(Direction::Left);
                 }
                 Event::KeyDown {
                     keycode: Some(Keycode::Right),
                     ..
                 } => {
-                    // let mut buf = world.write_resource::<&mut InputBuffer>();
-                    buf.add_direction(Direction::Right);
+                    input_buffer.add_direction(Direction::Right);
                 }
                 Event::KeyDown {
                     keycode: Some(Keycode::Up),
                     ..
                 } => {
-                    // let mut buf = world.write_resource::<&mut InputBuffer>();
-                    buf.add_direction(Direction::Up);
+                    input_buffer.add_direction(Direction::Up);
                 }
                 Event::KeyDown {
                     keycode: Some(Keycode::Down),
                     ..
                 } => {
-                    // let mut buf = world.write_resource::<&mut InputBuffer>();
-                    buf.add_direction(Direction::Down);
+                    input_buffer.add_direction(Direction::Down);
                 }
                 Event::KeyUp {
                     keycode: Some(Keycode::Left),
                     ..
                 } => {
-                    // let mut buf = world.write_resource::<&mut InputBuffer>();
-                    buf.remove_direction(Direction::Left);
+                    input_buffer.remove_direction(Direction::Left);
                 }
                 Event::KeyUp {
                     keycode: Some(Keycode::Right),
                     ..
                 } => {
-                    // let mut buf = world.write_resource::<&mut InputBuffer>();
-                    buf.remove_direction(Direction::Right);
+                    input_buffer.remove_direction(Direction::Right);
                 }
                 Event::KeyUp {
                     keycode: Some(Keycode::Up),
                     ..
                 } => {
-                    // let mut buf = world.write_resource::<&mut InputBuffer>();
-                    buf.remove_direction(Direction::Up);
+                    input_buffer.remove_direction(Direction::Up);
                 }
                 Event::KeyUp {
                     keycode: Some(Keycode::Down),
                     ..
                 } => {
-                    // let mut buf = world.write_resource::<&mut InputBuffer>();
-                    buf.remove_direction(Direction::Down);
+                    input_buffer.remove_direction(Direction::Down);
                 }
 
                 Event::MouseMotion { x, y, .. } => {
@@ -187,7 +197,8 @@ pub fn main() -> Result<(), String> {
                 }
                 _ => {}
             }
-            world.insert(buf);
+            let mut vel = world.write_resource();
+            *vel = input_buffer.get_velocity();
         }
 
         // Update levels

@@ -14,6 +14,7 @@ use sdl2::keyboard::Keycode;
 use sdl2::rect::{Point, Rect};
 use specs::prelude::*;
 use std::time::Duration;
+use tiled::Loader;
 
 #[derive(Debug)]
 pub struct InputBuffer {
@@ -71,19 +72,28 @@ pub fn main() -> Result<(), String> {
 
     let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
 
-    let texture_creator = canvas.texture_creator();
-
+    // Creates ECS
     let mut dispatcher = DispatcherBuilder::new()
         .with(keyboard::Keyboard, "Keyboard", &[])
         .with(physics::Physics, "Phyisics", &["Keyboard"])
         .with(animator::Animator, "Animator", &["Keyboard"])
         .build();
-
     let mut world = World::new();
     dispatcher.setup(&mut world);
 
-    let textures = [texture_creator.load_texture("assets/bardo.png")?];
+    // Loads textures
+    let texture_creator = canvas.texture_creator();
+    let textures = [
+        texture_creator.load_texture("assets/bardo.png")?,
+        texture_creator.load_texture("assets/combat_Dungeon.png")?,
+    ];
 
+    // Loads tile map
+    let mut tiled_loader = Loader::new();
+    let tile_map = tiled_loader.load_tmx_map("assets/combat_Dungeon.tmx").unwrap();
+    println!("{:?}", tile_map);
+
+    // Creates grids data
     let delta_up = 0.1;
     let delta_down = -0.03;
 
@@ -94,6 +104,7 @@ pub fn main() -> Result<(), String> {
     let mut cur_x = -1;
     let mut cur_y = -1;
 
+    // Creates entities
     let player_top_left_frame = Rect::new(0, 0, 26, 36);
     let player_animation = MovementAnimation {
         current_frame: 0,
@@ -126,6 +137,7 @@ pub fn main() -> Result<(), String> {
         .with(default_sprite.clone()) // sets default sprite
         .build();
 
+    // Create resources
     let mut input_buffer = InputBuffer {
         dir_queue: vec![],
         dir_state: [false; 4],

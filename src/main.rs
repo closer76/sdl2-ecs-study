@@ -38,9 +38,9 @@ impl InputBuffer {
         }
     }
 
-    pub fn get_velocity(&self) -> Velocity {
+    pub fn get_velocity(&self, saved_dir: Direction) -> Velocity {
         let mut vel = Velocity {
-            direction: Direction::Right,
+            direction: saved_dir,
             speed: 0,
         };
         if let Some(last_dir) = self.dir_queue.last() {
@@ -142,7 +142,8 @@ pub fn main() -> Result<(), String> {
         dir_queue: vec![],
         dir_state: [false; 4],
     };
-    world.insert(input_buffer.get_velocity());
+    let mut last_dir = input_buffer.get_velocity(Direction::Right).direction;
+    world.insert(input_buffer.get_velocity(last_dir));
 
     let mut event_pump = sdl_context.event_pump()?;
     'running: loop {
@@ -209,8 +210,10 @@ pub fn main() -> Result<(), String> {
                 }
                 _ => {}
             }
+            let new_vel = input_buffer.get_velocity(last_dir);
+            last_dir = new_vel.direction;
             let mut vel = world.write_resource();
-            *vel = input_buffer.get_velocity();
+            *vel = new_vel;
         }
 
         // Update levels

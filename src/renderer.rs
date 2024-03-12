@@ -17,6 +17,13 @@ pub fn render(
     canvas.set_draw_color(Color::RGB(0, 0, 0));
     canvas.clear();
 
+    // background
+    canvas.copy(
+        &textures[1],
+        Rect::new(0, 0, SCREEN_W, SCREEN_H),
+        Rect::new(0, 0, SCREEN_W, SCREEN_H),
+    )?;
+
     for y in 0..GRID_COUNT_Y {
         for x in 0..GRID_COUNT_X {
             let red = (255.0 * levels[y][x]) as u8;

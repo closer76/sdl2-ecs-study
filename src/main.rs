@@ -9,12 +9,19 @@ use crate::components::*;
 use crate::constants::*;
 
 use sdl2::event::Event;
-use sdl2::image::{self, InitFlag, LoadTexture};
+use sdl2::image::{self, InitFlag, LoadSurface, LoadTexture};
 use sdl2::keyboard::Keycode;
+use sdl2::pixels::PixelFormatEnum;
 use sdl2::rect::{Point, Rect};
+use sdl2::render::Texture;
+use sdl2::render::TextureCreator;
+use sdl2::surface::Surface;
+use sdl2::video::WindowContext;
 use specs::prelude::*;
 use std::time::Duration;
+use tiled::LayerType;
 use tiled::Loader;
+use tiled::Map;
 
 #[derive(Debug)]
 pub struct InputBuffer {
@@ -83,15 +90,18 @@ pub fn main() -> Result<(), String> {
 
     // Loads textures
     let texture_creator = canvas.texture_creator();
-    let textures = [
+    let mut textures = vec![
         texture_creator.load_texture("assets/bardo.png")?,
-        texture_creator.load_texture("assets/combat_Dungeon.png")?,
     ];
 
     // Loads tile map
     let mut tiled_loader = Loader::new();
-    let tile_map = tiled_loader.load_tmx_map("assets/combat_Dungeon.tmx").unwrap();
-    println!("{:?}", tile_map);
+    let tile_map = tiled_loader
+        .load_tmx_map("assets/combat_Dungeon.tmx")
+        .unwrap();
+
+    let tile_texture = compose_tile_map(&tile_map, &texture_creator)?;
+    textures.push(tile_texture);
 
     // Creates grids data
     let delta_up = 0.1;
@@ -276,4 +286,61 @@ fn character_animation_frames(
             ),
         })
         .collect()
+}
+
+fn compose_tile_map<'a>(
+    map: &Map,
+    texture_creator: &'a TextureCreator<WindowContext>,
+) -> Result<Texture<'a>, String> {
+    let tile_width = map.tile_width;
+    let tile_height = map.tile_height;
+    let layer = match map
+        .get_layer(0)
+        .ok_or(String::from("Can't get layer 0."))?
+        .layer_type()
+    {
+        LayerType::Tiles(layer) => Ok(layer),
+        _ => Err(String::from("Incorrect layer type.")),
+    }?;
+    let (x_count, y_count) = match layer {
+        tiled::TileLayer::Finite(finite) => (finite.width(), finite.height()),
+        _ => return Err(String::from("format error.")),
+    };
+
+    let mut canvas = Surface::new(
+        tile_width * x_count,
+        tile_height * y_count,
+        PixelFormatEnum::ARGB8888,
+    )?;
+
+    let tileset = map.tilesets().first().ok_or("No tilesets.")?;
+    let image_info = tileset.image.as_ref().unwrap();
+    let src = Surface::from_file(image_info.source.clone())?;
+
+    for y in 0..y_count {
+        for x in 0..x_count {
+            let tile_id = layer.get_tile(x as i32, y as i32).unwrap().id();
+            let tile_x = tile_id % tileset.columns;
+            let tile_y = tile_id / tileset.columns;
+            src.blit(
+                Rect::new(
+                    (tile_x * (tileset.spacing + tile_width) + tileset.margin) as i32,
+                    (tile_y * (tileset.spacing + tile_height) + tileset.margin) as i32,
+                    tile_width,
+                    tile_height,
+                ),
+                &mut canvas,
+                Rect::new(
+                    (x * tile_width) as i32,
+                    (y * tile_height) as i32,
+                    tile_width,
+                    tile_height,
+                ),
+            )?;
+        }
+    }
+
+    canvas
+        .as_texture(texture_creator)
+        .map_err(|e| e.to_string())
 }

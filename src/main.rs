@@ -227,8 +227,8 @@ pub fn main() -> Result<(), String> {
         }
 
         // Update levels
-        let in_y = if cur_y >= 0 { cur_y / 40 } else { -1 };
-        let in_x = if cur_x >= 0 { cur_x / 40 } else { -1 };
+        let in_y = if cur_y >= 0 { cur_y / GRID_H as i32 } else { -1 };
+        let in_x = if cur_x >= 0 { cur_x / GRID_W as i32 } else { -1 };
         for y in 0..GRID_COUNT_Y {
             for x in 0..GRID_COUNT_X {
                 if (y as i32) == in_y && (x as i32) == in_x {

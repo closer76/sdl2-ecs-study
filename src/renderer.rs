@@ -26,14 +26,17 @@ pub fn render(
 
     for y in 0..GRID_COUNT_Y {
         for x in 0..GRID_COUNT_X {
-            let red = (255.0 * levels[y][x]) as u8;
-            canvas.set_draw_color(Color::RGB(red, 0, 0));
-            canvas.fill_rect(Rect::new(
-                (x as u32 * GRID_W + 1) as i32,
-                (y as u32 * GRID_H + 1) as i32,
-                (GRID_W - 2) as u32,
-                (GRID_H - 2) as u32,
-            ))?;
+            if levels[y][x] > 0.0 {
+                let red = (255.0 * levels[y][x]) as u8;
+                canvas.set_draw_color(Color::RGBA(255, 0, 0, red));
+                canvas.set_blend_mode(sdl2::render::BlendMode::Blend);
+                canvas.fill_rect(Rect::new(
+                    (x as u32 * GRID_W + 1) as i32,
+                    (y as u32 * GRID_H + 1) as i32,
+                    (GRID_W - 2) as u32,
+                    (GRID_H - 2) as u32,
+                ))?;
+            }
         }
     }
 
